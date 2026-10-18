@@ -1,6 +1,8 @@
 import type { Repository, TimeRange, Language } from '../types';
 
-const TRENDING_API = 'http://localhost:3001/api/trending';
+const TRENDING_API = import.meta.env.PROD
+  ? '/api/trending'
+  : 'http://localhost:3001/api/trending';
 
 export async function fetchTrending(
   language: Language = 'all',
