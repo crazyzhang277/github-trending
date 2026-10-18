@@ -1,8 +1,7 @@
 import type { Repository, TimeRange, Language } from '../types';
 
-const TRENDING_API = import.meta.env.PROD
-  ? '/api/trending'
-  : 'http://localhost:3001/api/trending';
+// 使用 GitHub Trending API 的镜像服务
+const TRENDING_API = 'https://gtrend.yapie.me/repositories';
 
 export async function fetchTrending(
   language: Language = 'all',
