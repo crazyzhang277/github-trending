@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
+import type { MouseEvent } from 'react';
 import type { Repository, TimeRange } from '../types';
 import type { Translations } from '../i18n/translations';
 import { findLanguageColor } from '../constants/languages';
 import { copyText, formatCompactNumber, formatExactNumber } from '../utils/format';
 import RepoAvatar from './RepoAvatar';
 import {
+  BookOpenIcon,
   BookmarkIcon,
   CheckIcon,
+  ChevronUpIcon,
   CopyIcon,
   ExternalLinkIcon,
   ForkIcon,
@@ -19,9 +22,11 @@ interface RepoCardProps {
   rank: number;
   timeRange: TimeRange;
   isSaved: boolean;
+  isExpanded: boolean;
   t: Translations;
   onToggleSave: (repo: Repository) => void;
   onSelectLanguage: (lang: string) => void;
+  onToggleExpand: (repo: Repository) => void;
 }
 
 export default function RepoCard({
@@ -29,9 +34,11 @@ export default function RepoCard({
   rank,
   timeRange,
   isSaved,
+  isExpanded,
   t,
   onToggleSave,
   onSelectLanguage,
+  onToggleExpand,
 }: RepoCardProps) {
   const [copied, setCopied] = useState(false);
   const timerRef = useRef<number | null>(null);
@@ -53,12 +60,23 @@ export default function RepoCard({
     }
   };
 
+  const handleCardClick = (event: MouseEvent<HTMLElement>) => {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('a, button')) return;
+    const selection = window.getSelection()?.toString();
+    if (selection && selection.length > 0) return;
+    onToggleExpand(repo);
+  };
+
   const rankTierClass = rank <= 3 ? `rank-tier-${rank}` : '';
   const langColor = repo.languageColor || findLanguageColor(repo.language);
   const langSlug = repo.language.trim().toLowerCase();
 
   return (
-    <article className="repo-card">
+    <article
+      className={`repo-card ${isExpanded ? 'is-expanded' : ''}`}
+      onClick={handleCardClick}
+    >
       <div className="repo-card-top">
         <div className="repo-identity">
           <RepoAvatar src={repo.avatar} alt={repo.author} className="repo-avatar" size={38} />
@@ -183,15 +201,28 @@ export default function RepoCard({
             <span />
           )}
 
-          <a
-            href={repo.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="repo-open-link"
-          >
-            <span>GitHub</span>
-            <ExternalLinkIcon />
-          </a>
+          <div className="repo-footer-links">
+            <button
+              type="button"
+              className={`readme-toggle-btn ${isExpanded ? 'is-active' : ''}`}
+              onClick={() => onToggleExpand(repo)}
+              aria-expanded={isExpanded}
+              title={isExpanded ? t.collapseReadme : t.previewReadme}
+            >
+              {isExpanded ? <ChevronUpIcon /> : <BookOpenIcon />}
+              <span>{isExpanded ? t.collapseReadme : 'README'}</span>
+            </button>
+
+            <a
+              href={repo.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="repo-open-link"
+            >
+              <span>GitHub</span>
+              <ExternalLinkIcon />
+            </a>
+          </div>
         </div>
       </div>
     </article>

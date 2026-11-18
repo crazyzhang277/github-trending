@@ -33,6 +33,34 @@ function localTrendingApiPlugin(): Plugin {
           );
         }
       });
+
+      server.middlewares.use('/api/readme', async (req, res, next) => {
+        if (req.method !== 'GET') {
+          next();
+          return;
+        }
+
+        try {
+          const { fetchReadmeServer } = await import('./api/readme.js');
+          const url = new URL(req.url || '/', 'http://localhost');
+          const owner = url.searchParams.get('owner') || '';
+          const repo = url.searchParams.get('repo') || '';
+          const result = await fetchReadmeServer(owner, repo);
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          res.end(JSON.stringify(result));
+        } catch (error) {
+          const errObj = error as { statusCode?: number; message?: string } | null;
+          const status = errObj?.statusCode === 400 ? 400 : errObj?.statusCode === 404 ? 404 : 502;
+          res.statusCode = status;
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          res.end(
+            JSON.stringify({
+              error: errObj?.message || 'Failed to fetch README.',
+            })
+          );
+        }
+      });
     },
   };
 }

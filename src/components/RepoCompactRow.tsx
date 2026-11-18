@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
+import type { MouseEvent } from 'react';
 import type { Repository, TimeRange } from '../types';
 import type { Translations } from '../i18n/translations';
 import { findLanguageColor } from '../constants/languages';
 import { copyText, formatCompactNumber, formatExactNumber } from '../utils/format';
 import RepoAvatar from './RepoAvatar';
 import {
+  BookOpenIcon,
   BookmarkIcon,
   CheckIcon,
+  ChevronUpIcon,
   CopyIcon,
   ForkIcon,
   StarIcon,
@@ -18,9 +21,11 @@ interface RepoCompactRowProps {
   rank: number;
   timeRange: TimeRange;
   isSaved: boolean;
+  isExpanded: boolean;
   t: Translations;
   onToggleSave: (repo: Repository) => void;
   onSelectLanguage: (lang: string) => void;
+  onToggleExpand: (repo: Repository) => void;
 }
 
 export default function RepoCompactRow({
@@ -28,9 +33,11 @@ export default function RepoCompactRow({
   rank,
   timeRange,
   isSaved,
+  isExpanded,
   t,
   onToggleSave,
   onSelectLanguage,
+  onToggleExpand,
 }: RepoCompactRowProps) {
   const [copied, setCopied] = useState(false);
   const timerRef = useRef<number | null>(null);
@@ -52,12 +59,23 @@ export default function RepoCompactRow({
     }
   };
 
+  const handleRowClick = (event: MouseEvent<HTMLElement>) => {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('a, button')) return;
+    const selection = window.getSelection()?.toString();
+    if (selection && selection.length > 0) return;
+    onToggleExpand(repo);
+  };
+
   const rankTierClass = rank <= 3 ? `rank-tier-${rank}` : '';
   const langColor = repo.languageColor || findLanguageColor(repo.language);
   const langSlug = repo.language.trim().toLowerCase();
 
   return (
-    <article className="compact-row">
+    <article
+      className={`compact-row ${isExpanded ? 'is-expanded' : ''}`}
+      onClick={handleRowClick}
+    >
       <div className="compact-main">
         <span className={`rank-badge compact-rank ${rankTierClass}`}>
           {String(rank).padStart(2, '0')}
@@ -142,6 +160,17 @@ export default function RepoCompactRow({
         )}
 
         <div className="compact-actions">
+          <button
+            type="button"
+            className={`icon-action-btn readme-icon-btn ${isExpanded ? 'is-active' : ''}`}
+            onClick={() => onToggleExpand(repo)}
+            aria-expanded={isExpanded}
+            title={isExpanded ? t.collapseReadme : t.previewReadme}
+            aria-label={isExpanded ? t.collapseReadme : t.previewReadme}
+          >
+            {isExpanded ? <ChevronUpIcon /> : <BookOpenIcon />}
+          </button>
+
           <button
             type="button"
             className={`icon-action-btn ${copied ? 'is-copied' : ''}`}

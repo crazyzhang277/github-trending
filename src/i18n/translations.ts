@@ -42,6 +42,14 @@ export interface Translations {
   bookmarkRemove: string;
   openOnGithub: string;
   filterByLanguage: (lang: string) => string;
+  previewReadme: string;
+  collapseReadme: string;
+  readmeLoading: string;
+  readmeNotFound: string;
+  readmeRetry: string;
+  readmeExpandFull: string;
+  readmeConstrainHeight: string;
+  readmeClose: string;
   errorTitle: string;
   retry: string;
   emptyTrendingTitle: string;
@@ -104,6 +112,14 @@ const zh: Translations = {
   bookmarkRemove: '取消收藏',
   openOnGithub: '前往 GitHub',
   filterByLanguage: (lang) => `按 ${lang} 筛选`,
+  previewReadme: '预览 README',
+  collapseReadme: '收起',
+  readmeLoading: '正在加载 README 文档...',
+  readmeNotFound: '该仓库暂未提供 README，或当前暂时无法拉取内容。',
+  readmeRetry: '重新加载',
+  readmeExpandFull: '展开全高',
+  readmeConstrainHeight: '固定高度',
+  readmeClose: '关闭预览',
   errorTitle: '数据加载失败',
   retry: '重试连接',
   emptyTrendingTitle: '暂无趋势项目',
@@ -166,6 +182,14 @@ const en: Translations = {
   bookmarkRemove: 'Remove bookmark',
   openOnGithub: 'Open on GitHub',
   filterByLanguage: (lang) => `Filter by ${lang}`,
+  previewReadme: 'README',
+  collapseReadme: 'Collapse',
+  readmeLoading: 'Loading README...',
+  readmeNotFound: 'No README found for this repository, or it could not be loaded right now.',
+  readmeRetry: 'Reload',
+  readmeExpandFull: 'Full height',
+  readmeConstrainHeight: 'Fixed height',
+  readmeClose: 'Close preview',
   errorTitle: 'Unable to load trending feed',
   retry: 'Try Again',
   emptyTrendingTitle: 'No trending repositories',

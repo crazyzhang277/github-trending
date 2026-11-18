@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -23,6 +24,7 @@ import Header from './components/Header';
 import Filters from './components/Filters';
 import RepoCard from './components/RepoCard';
 import RepoCompactRow from './components/RepoCompactRow';
+import ReadmeDrawer from './components/ReadmeDrawer';
 import SkeletonGrid from './components/SkeletonGrid';
 import { AlertIcon, BookmarkIcon, RefreshIcon, SearchIcon } from './components/Icons';
 import './App.css';
@@ -100,6 +102,13 @@ function repoKey(repo: Pick<Repository, 'author' | 'name'>): string {
   return `${repo.author}/${repo.name}`.toLowerCase();
 }
 
+function getGridColumns(): number {
+  if (typeof window === 'undefined') return 3;
+  if (window.matchMedia('(max-width: 720px)').matches) return 1;
+  if (window.matchMedia('(max-width: 1120px)').matches) return 2;
+  return 3;
+}
+
 function App() {
   const initial = useMemo(() => readInitialUrlParams(), []);
 
@@ -120,9 +129,14 @@ function App() {
   const [locale, setLocale] = useState<Locale>(readInitialLocale);
   const [theme, setTheme] = useState<Theme>(readInitialTheme);
   const [fetchNonce, setFetchNonce] = useState(0);
+  const [gridColumns, setGridColumns] = useState<number>(getGridColumns);
+  const [drawerRepo, setDrawerRepo] = useState<Repository | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const forceRefreshRef = useRef(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const openRafRef = useRef<number | null>(null);
+  const closeTimerRef = useRef<number | null>(null);
   const t = TRANSLATIONS[locale];
 
   // Sync theme attribute to <html>
@@ -234,7 +248,44 @@ function App() {
     return () => window.clearInterval(interval);
   }, [autoRefresh, triggerRefresh]);
 
-  // Keyboard shortcuts: '/' to focus search, 'r' to refresh
+  // Track responsive grid column count for row-aligned README drawer insertion
+  useEffect(() => {
+    const mqSmall = window.matchMedia('(max-width: 720px)');
+    const mqMedium = window.matchMedia('(max-width: 1120px)');
+    const syncColumns = () => {
+      setGridColumns(getGridColumns());
+    };
+    mqSmall.addEventListener('change', syncColumns);
+    mqMedium.addEventListener('change', syncColumns);
+    return () => {
+      mqSmall.removeEventListener('change', syncColumns);
+      mqMedium.removeEventListener('change', syncColumns);
+    };
+  }, []);
+
+  const clearDrawerTimers = useCallback(() => {
+    if (openRafRef.current !== null) {
+      window.cancelAnimationFrame(openRafRef.current);
+      openRafRef.current = null;
+    }
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => clearDrawerTimers, [clearDrawerTimers]);
+
+  const closeDrawer = useCallback(() => {
+    clearDrawerTimers();
+    setDrawerOpen(false);
+    closeTimerRef.current = window.setTimeout(() => {
+      setDrawerRepo(null);
+      closeTimerRef.current = null;
+    }, 320);
+  }, [clearDrawerTimers]);
+
+  // Keyboard shortcuts: '/' to focus search, 'r' to refresh, 'Escape' to close README drawer
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -246,7 +297,10 @@ function App() {
 
       if (isTyping) return;
 
-      if (event.key === '/' && !event.metaKey && !event.ctrlKey && !event.altKey) {
+      if (event.key === 'Escape' && drawerOpen) {
+        event.preventDefault();
+        closeDrawer();
+      } else if (event.key === '/' && !event.metaKey && !event.ctrlKey && !event.altKey) {
         event.preventDefault();
         searchInputRef.current?.focus();
       } else if (
@@ -262,10 +316,11 @@ function App() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [triggerRefresh]);
+  }, [triggerRefresh, drawerOpen, closeDrawer]);
 
   const handleLanguageChange = (nextLanguage: Language) => {
     if (nextLanguage === language) return;
+    closeDrawer();
     setOnlySaved(false);
     setLoading(true);
     setIsFilterTransition(true);
@@ -275,6 +330,7 @@ function App() {
 
   const handleTimeRangeChange = (nextRange: TimeRange) => {
     if (nextRange === timeRange) return;
+    closeDrawer();
     setLoading(true);
     setIsFilterTransition(true);
     setError(null);
@@ -283,6 +339,7 @@ function App() {
 
   const handleSpokenChange = (nextSpoken: SpokenLanguage) => {
     if (nextSpoken === spoken) return;
+    closeDrawer();
     setLoading(true);
     setIsFilterTransition(true);
     setError(null);
@@ -301,6 +358,7 @@ function App() {
   };
 
   const handleResetFilters = () => {
+    closeDrawer();
     setSearchQuery('');
     setSortBy('trending');
     setOnlySaved(false);
@@ -353,6 +411,47 @@ function App() {
     });
   }, [sourceList, searchQuery, sortBy]);
 
+  const handleToggleExpand = useCallback(
+    (targetRepo: Repository) => {
+      const targetKey = repoKey(targetRepo);
+      const currentKey = drawerRepo ? repoKey(drawerRepo) : null;
+
+      if (currentKey === targetKey && drawerOpen) {
+        closeDrawer();
+        return;
+      }
+
+      const curIndex =
+        currentKey !== null
+          ? displayedRepos.findIndex(({ repo }) => repoKey(repo) === currentKey)
+          : -1;
+      const nextIndex = displayedRepos.findIndex(({ repo }) => repoKey(repo) === targetKey);
+      const sameGridRow =
+        drawerOpen &&
+        viewMode === 'grid' &&
+        curIndex >= 0 &&
+        nextIndex >= 0 &&
+        Math.floor(curIndex / gridColumns) === Math.floor(nextIndex / gridColumns);
+
+      clearDrawerTimers();
+      setDrawerRepo(targetRepo);
+
+      if (sameGridRow) {
+        setDrawerOpen(true);
+        return;
+      }
+
+      setDrawerOpen(false);
+      openRafRef.current = window.requestAnimationFrame(() => {
+        openRafRef.current = window.requestAnimationFrame(() => {
+          setDrawerOpen(true);
+          openRafRef.current = null;
+        });
+      });
+    },
+    [drawerRepo, drawerOpen, displayedRepos, viewMode, gridColumns, clearDrawerTimers, closeDrawer]
+  );
+
   const totalPeriodStars = useMemo(
     () => displayedRepos.reduce((sum, item) => sum + item.repo.currentPeriodStars, 0),
     [displayedRepos]
@@ -367,6 +466,19 @@ function App() {
   const showSkeletons = !onlySaved && loading && (isFilterTransition || repos.length === 0);
   const showError = !onlySaved && Boolean(error) && !loading;
   const showEmpty = !showSkeletons && !showError && displayedRepos.length === 0;
+
+  const drawerKey = drawerRepo ? repoKey(drawerRepo) : null;
+  const expandedIndex =
+    drawerKey !== null
+      ? displayedRepos.findIndex(({ repo }) => repoKey(repo) === drawerKey)
+      : -1;
+  const gridRowEndIndex =
+    expandedIndex >= 0
+      ? Math.min(
+          displayedRepos.length - 1,
+          Math.floor(expandedIndex / gridColumns) * gridColumns + gridColumns - 1
+        )
+      : -1;
 
   return (
     <div className="app-shell">
@@ -402,7 +514,10 @@ function App() {
           onSearchChange={setSearchQuery}
           onSortChange={setSortBy}
           onViewModeChange={setViewMode}
-          onToggleOnlySaved={() => setOnlySaved((prev) => !prev)}
+          onToggleOnlySaved={() => {
+            closeDrawer();
+            setOnlySaved((prev) => !prev);
+          }}
         />
 
         {!showSkeletons && !showError && (
@@ -489,33 +604,65 @@ function App() {
         {!showSkeletons && !showError && displayedRepos.length > 0 && (
           viewMode === 'grid' ? (
             <div className="repos-grid">
-              {displayedRepos.map(({ repo, originalRank }) => (
-                <RepoCard
-                  key={repoKey(repo)}
-                  repo={repo}
-                  rank={originalRank}
-                  timeRange={timeRange}
-                  isSaved={savedKeys.has(repoKey(repo))}
-                  t={t}
-                  onToggleSave={handleToggleSave}
-                  onSelectLanguage={handleLanguageChange}
-                />
-              ))}
+              {displayedRepos.map(({ repo, originalRank }, index) => {
+                const key = repoKey(repo);
+                const isExpanded = drawerOpen && drawerKey === key;
+                return (
+                  <Fragment key={key}>
+                    <RepoCard
+                      repo={repo}
+                      rank={originalRank}
+                      timeRange={timeRange}
+                      isSaved={savedKeys.has(key)}
+                      isExpanded={isExpanded}
+                      t={t}
+                      onToggleSave={handleToggleSave}
+                      onSelectLanguage={handleLanguageChange}
+                      onToggleExpand={handleToggleExpand}
+                    />
+                    {drawerRepo && index === gridRowEndIndex && (
+                      <ReadmeDrawer
+                        repo={drawerRepo}
+                        isOpen={drawerOpen}
+                        variant="grid"
+                        t={t}
+                        onClose={closeDrawer}
+                      />
+                    )}
+                  </Fragment>
+                );
+              })}
             </div>
           ) : (
             <div className="compact-list">
-              {displayedRepos.map(({ repo, originalRank }) => (
-                <RepoCompactRow
-                  key={repoKey(repo)}
-                  repo={repo}
-                  rank={originalRank}
-                  timeRange={timeRange}
-                  isSaved={savedKeys.has(repoKey(repo))}
-                  t={t}
-                  onToggleSave={handleToggleSave}
-                  onSelectLanguage={handleLanguageChange}
-                />
-              ))}
+              {displayedRepos.map(({ repo, originalRank }, index) => {
+                const key = repoKey(repo);
+                const isExpanded = drawerOpen && drawerKey === key;
+                return (
+                  <Fragment key={key}>
+                    <RepoCompactRow
+                      repo={repo}
+                      rank={originalRank}
+                      timeRange={timeRange}
+                      isSaved={savedKeys.has(key)}
+                      isExpanded={isExpanded}
+                      t={t}
+                      onToggleSave={handleToggleSave}
+                      onSelectLanguage={handleLanguageChange}
+                      onToggleExpand={handleToggleExpand}
+                    />
+                    {drawerRepo && index === expandedIndex && (
+                      <ReadmeDrawer
+                        repo={drawerRepo}
+                        isOpen={drawerOpen}
+                        variant="compact"
+                        t={t}
+                        onClose={closeDrawer}
+                      />
+                    )}
+                  </Fragment>
+                );
+              })}
             </div>
           )
         )}

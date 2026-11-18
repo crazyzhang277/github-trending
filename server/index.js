@@ -133,6 +133,90 @@ app.get('/api/trending', async (req, res) => {
   }
 });
 
+app.get('/api/readme', async (req, res) => {
+  try {
+    const owner = String(req.query.owner || '').trim();
+    const repo = String(req.query.repo || '').trim();
+    if (!/^[a-zA-Z0-9._-]+$/.test(owner) || !/^[a-zA-Z0-9._-]+$/.test(repo)) {
+      res.status(400).json({ error: 'Invalid repository owner or name' });
+      return;
+    }
+
+    const encodedOwner = encodeURIComponent(owner);
+    const encodedRepo = encodeURIComponent(repo);
+
+    for (const candidate of ['README.md', 'readme.md']) {
+      try {
+        const rawRes = await axios.get(
+          `https://raw.githubusercontent.com/${encodedOwner}/${encodedRepo}/HEAD/${candidate}`,
+          {
+            timeout: 8000,
+            responseType: 'text',
+            transformResponse: [(data) => data],
+            headers: { 'User-Agent': 'github-trending-web/1.0' },
+          }
+        );
+        if (typeof rawRes.data === 'string' && rawRes.data.length > 0) {
+          res.json({
+            content: rawRes.data,
+            fileName: candidate,
+            branch: 'HEAD',
+            baseDir: '',
+            htmlUrl: `https://github.com/${encodedOwner}/${encodedRepo}/blob/HEAD/${candidate}`,
+          });
+          return;
+        }
+      } catch {
+        // Fall through
+      }
+    }
+
+    const apiRes = await axios.get(
+      `https://api.github.com/repos/${encodedOwner}/${encodedRepo}/readme`,
+      {
+        timeout: 10000,
+        headers: {
+          Accept: 'application/vnd.github+json',
+          'User-Agent': 'github-trending-web/1.0',
+        },
+      }
+    );
+    const data = apiRes.data || {};
+    let content = '';
+    if (data.content && data.encoding === 'base64') {
+      content = Buffer.from(String(data.content).replace(/\s+/g, ''), 'base64').toString('utf-8');
+    } else if (data.download_url) {
+      const dlRes = await axios.get(data.download_url, {
+        timeout: 8000,
+        responseType: 'text',
+        transformResponse: [(raw) => raw],
+      });
+      content = String(dlRes.data || '');
+    }
+
+    if (!content) {
+      res.status(404).json({ error: 'README not found' });
+      return;
+    }
+
+    const filePath = data.path || data.name || 'README.md';
+    const dlMatch = data.download_url?.match(
+      /^https:\/\/raw\.githubusercontent\.com\/[^/]+\/[^/]+\/([^/]+)\//
+    );
+    const slashIdx = filePath.lastIndexOf('/');
+    res.json({
+      content,
+      fileName: data.name || 'README.md',
+      branch: dlMatch?.[1] || 'HEAD',
+      baseDir: slashIdx >= 0 ? filePath.slice(0, slashIdx) : '',
+      htmlUrl: data.html_url || `https://github.com/${encodedOwner}/${encodedRepo}`,
+    });
+  } catch (error) {
+    const status = error?.response?.status === 404 ? 404 : 502;
+    res.status(status).json({ error: 'Failed to fetch README' });
+  }
+});
+
 if (!process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`Backend server running at http://localhost:${PORT}`);

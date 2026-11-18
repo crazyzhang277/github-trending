@@ -644,18 +644,28 @@
 .repo-card {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   padding: 18px;
   border-radius: 13px;
   background: var(--surface-1);
   border: 1px solid var(--border-subtle);
   box-shadow: var(--inset-highlight), var(--shadow-card);
-  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
 }
 
 .repo-card:hover {
   transform: translateY(-2px);
   border-color: var(--border-strong);
   box-shadow: var(--inset-highlight), var(--shadow-card-hover);
+}
+
+.repo-card.is-expanded {
+  border-color: var(--accent-border);
+  box-shadow:
+    0 0 0 1px var(--accent-soft),
+    var(--inset-highlight),
+    var(--shadow-card-hover);
 }
 
 .repo-card-top {
@@ -886,6 +896,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 10px;
   padding-top: 12px;
   border-top: 1px solid var(--border-subtle);
@@ -939,6 +950,42 @@
   font-size: 9px;
 }
 
+.repo-footer-links {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.readme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 7px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.readme-toggle-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+  background: var(--surface-3);
+}
+
+.readme-toggle-btn.is-active {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+
 .repo-open-link {
   display: inline-flex;
   align-items: center;
@@ -972,7 +1019,8 @@
   gap: 16px;
   padding: 14px 18px;
   border-bottom: 1px solid var(--border-subtle);
-  transition: background-color 0.14s ease;
+  cursor: pointer;
+  transition: background-color 0.14s ease, border-color 0.14s ease;
 }
 
 .compact-row:last-child {
@@ -981,6 +1029,17 @@
 
 .compact-row:hover {
   background: var(--surface-hover);
+}
+
+.compact-row.is-expanded {
+  background: var(--surface-hover);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.readme-icon-btn.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent-border);
 }
 
 .compact-main {
@@ -1055,6 +1114,447 @@
   display: flex;
   align-items: center;
   gap: 3px;
+}
+
+/* Inline README Quick-Preview Drawer */
+.btn-sm {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  border-radius: 7px;
+}
+
+.readme-drawer-shell {
+  grid-column: 1 / -1;
+  min-width: 0;
+  scroll-margin-top: 88px;
+}
+
+.readme-drawer-shell:not(.is-compact) {
+  margin-top: -16px;
+  transition: margin-top 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.readme-drawer-shell:not(.is-compact).is-open {
+  margin-top: 0;
+}
+
+.readme-drawer-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition:
+    grid-template-rows 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.24s ease,
+    transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.readme-drawer-shell.is-open .readme-drawer-collapse {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.readme-drawer-collapse-inner {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.readme-drawer {
+  border-radius: 14px;
+  background: var(--surface-1);
+  border: 1px solid var(--accent-border);
+  box-shadow: var(--inset-highlight), var(--shadow-card-hover);
+  overflow: hidden;
+}
+
+.readme-drawer.is-compact {
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  border-top: 1px solid var(--accent-border);
+  border-bottom: 1px solid var(--border-subtle);
+  box-shadow: none;
+  background: var(--surface-hover);
+}
+
+.readme-drawer-shell.is-compact:last-child .readme-drawer.is-compact {
+  border-bottom: none;
+}
+
+.readme-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 18px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+}
+
+.readme-drawer-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.readme-drawer-avatar {
+  border-radius: 7px;
+  border: 1px solid var(--border-subtle);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.readme-drawer-repo-link {
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.readme-drawer-repo-link:hover .repo-name {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.readme-file-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.readme-drawer-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.readme-external-btn {
+  text-decoration: none;
+}
+
+.readme-close-btn {
+  color: var(--text-secondary);
+}
+
+.readme-drawer-body {
+  padding: 22px 26px;
+  max-height: min(64vh, 600px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.readme-drawer-body.is-full-height {
+  max-height: none;
+}
+
+.readme-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding: 6px 0;
+}
+
+.readme-sk-h1 {
+  width: 36%;
+  height: 20px;
+  margin-bottom: 4px;
+}
+
+.readme-sk-h2 {
+  width: 24%;
+  height: 16px;
+  margin-top: 8px;
+}
+
+.readme-sk-p1 {
+  width: 92%;
+}
+
+.readme-sk-p2 {
+  width: 74%;
+}
+
+.readme-sk-p3 {
+  width: 60%;
+}
+
+.readme-sk-block {
+  width: 100%;
+  height: 76px;
+  border-radius: 10px;
+}
+
+.readme-loading-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.readme-error-state {
+  padding: 26px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+}
+
+.readme-error-icon {
+  color: var(--text-muted);
+}
+
+.readme-error-msg {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+}
+
+.readme-error-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* GitHub-flavored Markdown Typography */
+.readme-markdown {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text-primary);
+  word-break: normal;
+  overflow-wrap: break-word;
+  animation: readmeFadeIn 0.22s ease;
+}
+
+@keyframes readmeFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.readme-markdown > *:first-child {
+  margin-top: 0;
+}
+
+.readme-markdown > *:last-child {
+  margin-bottom: 0;
+}
+
+.readme-markdown h1,
+.readme-markdown h2,
+.readme-markdown h3,
+.readme-markdown h4,
+.readme-markdown h5,
+.readme-markdown h6 {
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+  margin-top: 22px;
+  margin-bottom: 10px;
+  color: var(--text-primary);
+  scroll-margin-top: 12px;
+}
+
+.readme-markdown h1 {
+  font-size: 21px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.readme-markdown h2 {
+  font-size: 17.5px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.readme-markdown h3 {
+  font-size: 15px;
+}
+
+.readme-markdown h4 {
+  font-size: 14px;
+}
+
+.readme-markdown p,
+.readme-markdown ul,
+.readme-markdown ol,
+.readme-markdown blockquote,
+.readme-markdown pre,
+.readme-markdown table,
+.readme-markdown details {
+  margin-top: 0;
+  margin-bottom: 13px;
+}
+
+.readme-markdown p {
+  color: var(--text-secondary);
+}
+
+.readme-markdown strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.readme-markdown a {
+  color: var(--link-color);
+  text-decoration: none;
+}
+
+.readme-markdown a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.readme-markdown ul,
+.readme-markdown ol {
+  padding-left: 22px;
+  color: var(--text-secondary);
+}
+
+.readme-markdown li + li {
+  margin-top: 4px;
+}
+
+.readme-markdown li > input[type='checkbox'] {
+  margin-right: 6px;
+  accent-color: var(--accent);
+}
+
+.readme-markdown hr {
+  height: 1px;
+  border: none;
+  background: var(--border-subtle);
+  margin: 18px 0;
+}
+
+.readme-markdown blockquote {
+  padding: 6px 14px;
+  border-left: 3px solid var(--accent-border);
+  background: var(--surface-2);
+  border-radius: 0 8px 8px 0;
+  color: var(--text-secondary);
+}
+
+.readme-markdown blockquote > *:last-child {
+  margin-bottom: 0;
+}
+
+.readme-markdown code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12.5px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+}
+
+.readme-markdown pre {
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+  overflow-x: auto;
+  line-height: 1.55;
+}
+
+.readme-markdown pre code {
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 12.5px;
+  color: var(--text-primary);
+}
+
+.readme-markdown kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+.readme-markdown img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.readme-markdown p > img,
+.readme-markdown p > a > img,
+.readme-markdown div[align='center'] img {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.readme-markdown table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.readme-markdown th,
+.readme-markdown td {
+  padding: 7px 12px;
+  border: 1px solid var(--border-subtle);
+  text-align: left;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+.readme-markdown thead th {
+  background: var(--surface-2);
+  color: var(--text-primary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.readme-markdown tbody tr:nth-child(2n) {
+  background: var(--surface-hover);
+}
+
+.readme-markdown details {
+  padding: 10px 14px;
+  border-radius: 9px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+}
+
+.readme-markdown summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.readme-markdown details[open] summary {
+  margin-bottom: 10px;
 }
 
 /* Skeleton Loading */
@@ -1298,7 +1798,7 @@
   }
 
   .repos-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .control-row-primary {
@@ -1327,5 +1827,37 @@
     right: 0;
     width: 100%;
     top: calc(100% + 6px);
+  }
+
+  .readme-drawer-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .readme-drawer-title-group {
+    width: 100%;
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+
+  .readme-drawer-repo-link {
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .readme-drawer-controls {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .readme-drawer-body {
+    padding: 16px;
+    max-height: 58vh;
+  }
+
+  .readme-btn-label {
+    display: none;
   }
 }
