@@ -1,55 +1,112 @@
+import type { Locale, Theme } from '../types';
+import type { Translations } from '../i18n/translations';
+import { formatTimeClock } from '../utils/format';
+import {
+  BrandLogo,
+  MoonIcon,
+  PauseIcon,
+  PlayIcon,
+  RefreshIcon,
+  SunIcon,
+} from './Icons';
+
 interface HeaderProps {
-  lastUpdate: Date;
+  lastUpdate: Date | null;
+  loading: boolean;
   autoRefresh: boolean;
+  locale: Locale;
+  theme: Theme;
+  t: Translations;
   onToggleAutoRefresh: () => void;
   onRefresh: () => void;
+  onToggleLocale: () => void;
+  onToggleTheme: () => void;
 }
 
 export default function Header({
   lastUpdate,
+  loading,
   autoRefresh,
+  locale,
+  theme,
+  t,
   onToggleAutoRefresh,
-  onRefresh
+  onRefresh,
+  onToggleLocale,
+  onToggleTheme,
 }: HeaderProps) {
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('zh-CN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
-  };
+  const statusText = loading && !lastUpdate
+    ? t.syncing
+    : lastUpdate
+      ? `${t.updatedAt} ${formatTimeClock(lastUpdate, locale)}`
+      : t.notSynced;
 
   return (
-    <header className="header">
-      <div className="container header-content">
-        <div className="header-left">
-          <h1>
-            <span className="icon">🚀</span>
-            GitHub Trending
-          </h1>
-          <p className="subtitle">实时追踪最热门的开源项目</p>
+    <header className="site-header">
+      <div className="container header-inner">
+        <div className="brand">
+          <BrandLogo className="brand-logo" />
+          <div className="brand-text">
+            <h1>{t.title}</h1>
+            <p className="brand-subtitle">{t.subtitle}</p>
+          </div>
         </div>
 
-        <div className="header-right">
-          <div className="update-info">
-            <span className="label">最后更新:</span>
-            <span className="time">{formatTime(lastUpdate)}</span>
+        <div className="header-actions">
+          <div className="sync-status" aria-live="polite">
+            <span
+              className={`sync-dot ${loading ? 'syncing' : autoRefresh ? 'live' : 'paused'}`}
+            />
+            <span className="sync-text">{statusText}</span>
           </div>
 
           <button
-            className={`toggle-btn ${autoRefresh ? 'active' : ''}`}
+            id="toggle-auto-refresh"
+            type="button"
+            className={`btn btn-ghost ${autoRefresh ? 'is-active' : ''}`}
             onClick={onToggleAutoRefresh}
-            title={autoRefresh ? '关闭自动刷新' : '开启自动刷新'}
+            aria-pressed={autoRefresh}
+            title={autoRefresh ? t.autoRefreshOn : t.autoRefreshOff}
           >
-            {autoRefresh ? '🔄 自动刷新' : '⏸️ 已暂停'}
+            {autoRefresh ? <PauseIcon /> : <PlayIcon />}
+            <span className="btn-label-hide-sm">
+              {autoRefresh ? t.autoRefreshOn : t.autoRefreshOff}
+            </span>
           </button>
 
           <button
-            className="refresh-btn"
+            id="refresh-trending"
+            type="button"
+            className="btn btn-primary"
             onClick={onRefresh}
-            title="立即刷新"
+            disabled={loading}
+            title={t.refreshNow}
           >
-            ↻ 刷新
+            <RefreshIcon className={loading ? 'spin' : ''} />
+            <span>{loading ? t.refreshing : t.refreshNow}</span>
+          </button>
+
+          <div className="header-divider" aria-hidden="true" />
+
+          <button
+            id="toggle-locale"
+            type="button"
+            className="btn btn-icon-text"
+            onClick={onToggleLocale}
+            title={locale === 'zh' ? 'Switch to English' : '切换为中文'}
+          >
+            {locale === 'zh' ? 'EN' : '中文'}
+          </button>
+
+          <button
+            id="toggle-theme"
+            type="button"
+            className="btn btn-icon"
+            onClick={onToggleTheme}
+            aria-label={theme === 'dark' ? t.themeToLight : t.themeToDark}
+            title={theme === 'dark' ? t.themeToLight : t.themeToDark}
+          >
+            {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
           </button>
         </div>
       </div>
