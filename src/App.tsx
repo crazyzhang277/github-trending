@@ -318,6 +318,57 @@ function App() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [triggerRefresh, drawerOpen, closeDrawer]);
 
+  // Auto-collapse README drawer when clicking anywhere outside the drawer box
+  useEffect(() => {
+    if (!drawerOpen) return;
+
+    let startedInDrawer = false;
+    let hasPointerDown = false;
+    let downX = 0;
+    let downY = 0;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      startedInDrawer = Boolean(target?.closest('.readme-drawer'));
+      hasPointerDown = true;
+      downX = event.clientX;
+      downY = event.clientY;
+    };
+
+    const handleDocumentClick = (event: MouseEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      const wasDownInDrawer = startedInDrawer;
+      const hadPointer = hasPointerDown;
+      const movedDistance = hadPointer
+        ? Math.hypot(event.clientX - downX, event.clientY - downY)
+        : 0;
+
+      startedInDrawer = false;
+      hasPointerDown = false;
+
+      if (!target || wasDownInDrawer) return;
+      if (target.closest('.readme-drawer')) return;
+      if (hadPointer && movedDistance > 6) return;
+
+      // Let card body / README toggle buttons handle switching or toggling directly
+      const isCardTarget = Boolean(target.closest('.repo-card, .compact-row'));
+      const isCardExpandControl =
+        !target.closest('a, button') ||
+        Boolean(target.closest('.readme-toggle-btn, .readme-icon-btn'));
+
+      if (isCardTarget && isCardExpandControl) return;
+
+      closeDrawer();
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    document.addEventListener('click', handleDocumentClick);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown, true);
+      document.removeEventListener('click', handleDocumentClick);
+    };
+  }, [drawerOpen, closeDrawer]);
+
   const handleLanguageChange = (nextLanguage: Language) => {
     if (nextLanguage === language) return;
     closeDrawer();
