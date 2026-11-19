@@ -217,6 +217,57 @@ app.get('/api/readme', async (req, res) => {
   }
 });
 
+app.post('/api/translate', async (req, res) => {
+  try {
+    const rawTexts = Array.isArray(req.body?.texts) ? req.body.texts.slice(0, 80) : [];
+    const texts = rawTexts.map((t) => String(t || '').replace(/\s+/g, ' ').trim());
+    if (texts.length === 0) {
+      res.status(400).json({ error: 'No texts provided' });
+      return;
+    }
+
+    const translateChunk = async (batch) => {
+      const payload = new URLSearchParams({
+        client: 'gtx',
+        sl: 'auto',
+        tl: 'zh-CN',
+        dt: 't',
+        q: batch.join('\n'),
+      });
+      const { data } = await axios.post(
+        'https://translate.googleapis.com/translate_a/single',
+        payload.toString(),
+        {
+          timeout: 9000,
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+            'User-Agent': 'github-trending-web/1.0',
+          },
+        }
+      );
+      const joined = Array.isArray(data?.[0])
+        ? data[0].map((seg) => (Array.isArray(seg) && typeof seg[0] === 'string' ? seg[0] : '')).join('')
+        : '';
+      const lines = joined.split('\n').map((l) => l.trim());
+      if (lines.length === batch.length) return lines;
+      if (batch.length <= 1) return [joined.replace(/\n+/g, ' ').trim()];
+      const mid = Math.floor(batch.length / 2);
+      const [left, right] = await Promise.all([
+        translateChunk(batch.slice(0, mid)),
+        translateChunk(batch.slice(mid)),
+      ]);
+      return [...left, ...right];
+    };
+
+    const translations = await translateChunk(texts);
+    res.json({ translations });
+  } catch (error) {
+    res.status(502).json({
+      error: error instanceof Error ? error.message : 'Translation failed',
+    });
+  }
+});
+
 if (!process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`Backend server running at http://localhost:${PORT}`);

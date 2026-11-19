@@ -3,6 +3,11 @@ import type { MouseEvent } from 'react';
 import type { Repository } from '../types';
 import type { Translations } from '../i18n/translations';
 import { fetchRepoReadme, getCachedReadme, type ReadmeResult } from '../api/readme';
+import {
+  getCachedTranslatedReadme,
+  translateReadmeHtml,
+  type TranslatedReadmeResult,
+} from '../api/translate';
 import { renderReadmeHtml } from '../utils/markdown';
 import { copyText } from '../utils/format';
 import RepoAvatar from './RepoAvatar';
@@ -15,6 +20,7 @@ import {
   MaximizeIcon,
   MinimizeIcon,
   RefreshIcon,
+  TranslateIcon,
   XIcon,
 } from './Icons';
 
@@ -28,13 +34,22 @@ interface ReadmeDrawerProps {
 
 interface ReadmeDrawerInnerProps {
   repo: Repository;
+  isOpen: boolean;
   variant: 'grid' | 'compact';
   t: Translations;
   onClose: () => void;
 }
 
-function ReadmeDrawerInner({ repo, variant, t, onClose }: ReadmeDrawerInnerProps) {
+function ReadmeDrawerInner({
+  repo,
+  isOpen,
+  variant,
+  t,
+  onClose,
+}: ReadmeDrawerInnerProps) {
   const cached = getCachedReadme(repo.author, repo.name);
+  const cachedTranslation = getCachedTranslatedReadme(repo.author, repo.name);
+
   const [readme, setReadme] = useState<ReadmeResult | null>(cached);
   const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState<string | null>(null);
@@ -42,16 +57,37 @@ function ReadmeDrawerInner({ repo, variant, t, onClose }: ReadmeDrawerInnerProps
   const [fullHeight, setFullHeight] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  const [translation, setTranslation] = useState<TranslatedReadmeResult | null>(cachedTranslation);
+  const [viewLang, setViewLang] = useState<'original' | 'zh'>('original');
+  const [translating, setTranslating] = useState(false);
+  const [translateProgress, setTranslateProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
+  const [translateError, setTranslateError] = useState(false);
+  const [showChineseNotice, setShowChineseNotice] = useState(false);
+
   const bodyRef = useRef<HTMLDivElement>(null);
   const copyTimerRef = useRef<number | null>(null);
+  const translateAbortRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
       if (copyTimerRef.current !== null) {
         window.clearTimeout(copyTimerRef.current);
       }
+      translateAbortRef.current?.abort();
     };
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      translateAbortRef.current?.abort();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -83,6 +119,11 @@ function ReadmeDrawerInner({ repo, variant, t, onClose }: ReadmeDrawerInnerProps
     });
   }, [readme, repo.author, repo.name]);
 
+  const displayedHtml =
+    viewLang === 'zh' && translation && !translation.alreadyChinese
+      ? translation.html
+      : renderedHtml;
+
   const handleRetry = () => {
     setLoading(true);
     setError(null);
@@ -95,6 +136,73 @@ function ReadmeDrawerInner({ repo, variant, t, onClose }: ReadmeDrawerInnerProps
       setCopied(true);
       if (copyTimerRef.current !== null) window.clearTimeout(copyTimerRef.current);
       copyTimerRef.current = window.setTimeout(() => setCopied(false), 1800);
+    }
+  };
+
+  const handleToggleTranslate = async () => {
+    if (translating) {
+      translateAbortRef.current?.abort();
+      return;
+    }
+
+    if (viewLang === 'zh') {
+      setViewLang('original');
+      setTranslateError(false);
+      return;
+    }
+
+    if (!renderedHtml) return;
+
+    const existing = translation ?? getCachedTranslatedReadme(repo.author, repo.name);
+    if (existing) {
+      setTranslation(existing);
+      setTranslateError(false);
+      if (existing.alreadyChinese) {
+        setShowChineseNotice((prev) => !prev);
+      } else {
+        setViewLang('zh');
+      }
+      return;
+    }
+
+    const controller = new AbortController();
+    translateAbortRef.current = controller;
+    setTranslating(true);
+    setTranslateError(false);
+    setTranslateProgress(null);
+    setShowChineseNotice(false);
+
+    try {
+      const result = await translateReadmeHtml(repo.author, repo.name, renderedHtml, {
+        signal: controller.signal,
+        onProgress: (done, total) => {
+          if (mountedRef.current && !controller.signal.aborted) {
+            setTranslateProgress({ done, total });
+          }
+        },
+      });
+
+      if (!mountedRef.current || controller.signal.aborted) return;
+
+      setTranslation(result);
+      if (result.alreadyChinese) {
+        setShowChineseNotice(true);
+        setViewLang('original');
+      } else {
+        setViewLang('zh');
+      }
+    } catch (err: unknown) {
+      if (!mountedRef.current || controller.signal.aborted) return;
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      setTranslateError(true);
+    } finally {
+      if (translateAbortRef.current === controller) {
+        translateAbortRef.current = null;
+      }
+      if (mountedRef.current) {
+        setTranslating(false);
+        setTranslateProgress(null);
+      }
     }
   };
 
@@ -118,6 +226,21 @@ function ReadmeDrawerInner({ repo, variant, t, onClose }: ReadmeDrawerInnerProps
       }
     }
   };
+
+  const translateBtnLabel = translating
+    ? t.translateProgress(translateProgress?.done ?? 0, translateProgress?.total ?? 0)
+    : viewLang === 'zh'
+      ? t.showOriginal
+      : t.translateToZh;
+
+  const showBanner =
+    !loading &&
+    !error &&
+    Boolean(readme) &&
+    (translating ||
+      translateError ||
+      (viewLang === 'zh' && Boolean(translation && !translation.alreadyChinese)) ||
+      (showChineseNotice && Boolean(translation?.alreadyChinese)));
 
   return (
     <section
@@ -144,6 +267,19 @@ function ReadmeDrawerInner({ repo, variant, t, onClose }: ReadmeDrawerInnerProps
         </div>
 
         <div className="readme-drawer-controls">
+          <button
+            type="button"
+            className={`btn btn-sm readme-translate-btn ${viewLang === 'zh' ? 'btn-ghost is-active' : ''} ${translating ? 'is-translating' : ''}`}
+            onClick={handleToggleTranslate}
+            disabled={!readme || loading || Boolean(error)}
+            title={translateBtnLabel}
+            aria-label={translateBtnLabel}
+            aria-pressed={viewLang === 'zh'}
+          >
+            <TranslateIcon />
+            <span className="readme-btn-label">{translateBtnLabel}</span>
+          </button>
+
           <button
             type="button"
             className={`btn btn-sm ${copied ? 'is-active' : ''}`}
@@ -230,11 +366,89 @@ function ReadmeDrawerInner({ repo, variant, t, onClose }: ReadmeDrawerInnerProps
         )}
 
         {!loading && !error && readme && (
-          <div
-            className="readme-markdown"
-            onClick={handleMarkdownClick}
-            dangerouslySetInnerHTML={{ __html: renderedHtml }}
-          />
+          <>
+            {showBanner && (
+              <div
+                className={`readme-translate-banner ${
+                  translating
+                    ? 'is-loading'
+                    : translateError
+                      ? 'is-error'
+                      : viewLang === 'zh'
+                        ? 'is-translated'
+                        : 'is-info'
+                }`}
+                role="status"
+              >
+                <div className="readme-translate-banner-text">
+                  {translating ? (
+                    <>
+                      <RefreshIcon className="spin" />
+                      <span>
+                        {t.translateProgress(
+                          translateProgress?.done ?? 0,
+                          translateProgress?.total ?? 0
+                        )}
+                      </span>
+                    </>
+                  ) : translateError ? (
+                    <>
+                      <AlertIcon />
+                      <span>{t.translateFailed}</span>
+                    </>
+                  ) : viewLang === 'zh' ? (
+                    <>
+                      <TranslateIcon />
+                      <span>{t.translatedBanner}</span>
+                    </>
+                  ) : (
+                    <>
+                      <BookOpenIcon />
+                      <span>{t.alreadyChineseNotice}</span>
+                    </>
+                  )}
+                </div>
+
+                {!translating && translateError && (
+                  <button
+                    type="button"
+                    className="readme-banner-action"
+                    onClick={handleToggleTranslate}
+                  >
+                    {t.retry}
+                  </button>
+                )}
+
+                {!translating && !translateError && viewLang === 'zh' && (
+                  <button
+                    type="button"
+                    className="readme-banner-action"
+                    onClick={() => setViewLang('original')}
+                  >
+                    {t.showOriginal}
+                  </button>
+                )}
+
+                {!translating && !translateError && showChineseNotice && translation?.alreadyChinese && (
+                  <button
+                    type="button"
+                    className="readme-banner-dismiss"
+                    onClick={() => setShowChineseNotice(false)}
+                    aria-label={t.readmeClose}
+                    title={t.readmeClose}
+                  >
+                    <XIcon />
+                  </button>
+                )}
+              </div>
+            )}
+
+            <div
+              className="readme-markdown"
+              onClick={handleMarkdownClick}
+              dangerouslySetInnerHTML={{ __html: displayedHtml }}
+            />
+          </>
         )}
       </div>
     </section>
@@ -269,6 +483,7 @@ export default function ReadmeDrawer({
           <ReadmeDrawerInner
             key={`${repo.author}/${repo.name}`.toLowerCase()}
             repo={repo}
+            isOpen={isOpen}
             variant={variant}
             t={t}
             onClose={onClose}

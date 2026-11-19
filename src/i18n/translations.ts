@@ -50,6 +50,13 @@ export interface Translations {
   readmeExpandFull: string;
   readmeConstrainHeight: string;
   readmeClose: string;
+  translateToZh: string;
+  translating: string;
+  translateProgress: (done: number, total: number) => string;
+  showOriginal: string;
+  translatedBanner: string;
+  alreadyChineseNotice: string;
+  translateFailed: string;
   errorTitle: string;
   retry: string;
   emptyTrendingTitle: string;
@@ -120,6 +127,13 @@ const zh: Translations = {
   readmeExpandFull: '展开全高',
   readmeConstrainHeight: '固定高度',
   readmeClose: '关闭预览',
+  translateToZh: '翻译中文',
+  translating: '翻译中...',
+  translateProgress: (done, total) => (total > 1 ? `翻译中 ${done}/${total}` : '翻译中...'),
+  showOriginal: '查看原文',
+  translatedBanner: '已翻译为简体中文（代码块与命令保留原文）',
+  alreadyChineseNotice: '当前 README 已为中文内容，无需翻译',
+  translateFailed: '翻译服务暂时不可用，请重试',
   errorTitle: '数据加载失败',
   retry: '重试连接',
   emptyTrendingTitle: '暂无趋势项目',
@@ -190,6 +204,13 @@ const en: Translations = {
   readmeExpandFull: 'Full height',
   readmeConstrainHeight: 'Fixed height',
   readmeClose: 'Close preview',
+  translateToZh: 'Translate ZH',
+  translating: 'Translating...',
+  translateProgress: (done, total) => (total > 1 ? `Translating ${done}/${total}` : 'Translating...'),
+  showOriginal: 'Original',
+  translatedBanner: 'Translated to Simplified Chinese (code blocks preserved)',
+  alreadyChineseNotice: 'This README is already in Chinese',
+  translateFailed: 'Translation unavailable right now, please retry',
   errorTitle: 'Unable to load trending feed',
   retry: 'Try Again',
   emptyTrendingTitle: 'No trending repositories',

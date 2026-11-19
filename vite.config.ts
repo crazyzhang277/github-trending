@@ -61,6 +61,44 @@ function localTrendingApiPlugin(): Plugin {
           );
         }
       });
+
+      server.middlewares.use('/api/translate', (req, res, next) => {
+        if (req.method !== 'POST') {
+          next();
+          return;
+        }
+
+        const chunks: Buffer[] = [];
+        req.on('data', (chunk: Buffer) => chunks.push(chunk));
+        req.on('end', async () => {
+          try {
+            const raw = Buffer.concat(chunks).toString('utf-8');
+            const parsed = JSON.parse(raw || '{}') as { texts?: unknown };
+            const texts = Array.isArray(parsed.texts)
+              ? parsed.texts.map((item) => String(item)).slice(0, 80)
+              : [];
+            if (texts.length === 0) {
+              res.statusCode = 400;
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.end(JSON.stringify({ error: 'No texts provided' }));
+              return;
+            }
+            const { translateTextsServer } = await import('./api/translate.js');
+            const translations = await translateTextsServer(texts);
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.end(JSON.stringify({ translations }));
+          } catch (error) {
+            res.statusCode = 502;
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.end(
+              JSON.stringify({
+                error: error instanceof Error ? error.message : 'Translation failed',
+              })
+            );
+          }
+        });
+      });
     },
   };
 }

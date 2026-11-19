@@ -1255,6 +1255,100 @@
   color: var(--text-secondary);
 }
 
+.readme-translate-btn.is-translating {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+
+.readme-translate-btn.is-translating svg {
+  animation: pulseDot 1.1s ease-in-out infinite;
+}
+
+.readme-translate-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+  border-radius: 9px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-2);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.readme-translate-banner.is-loading,
+.readme-translate-banner.is-translated {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+
+.readme-translate-banner.is-info {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+
+.readme-translate-banner.is-error {
+  background: var(--danger-soft);
+  border-color: rgba(248, 113, 113, 0.3);
+  color: var(--danger);
+}
+
+.readme-translate-banner-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.readme-translate-banner-text svg {
+  flex-shrink: 0;
+}
+
+.readme-banner-action {
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font-size: 11.5px;
+  font-weight: 550;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.readme-banner-action:hover {
+  background: var(--surface-2);
+  border-color: var(--accent-border);
+}
+
+.readme-banner-dismiss {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.readme-banner-dismiss:hover {
+  background: var(--surface-3);
+  color: var(--text-primary);
+}
+
 .readme-drawer-body {
   padding: 22px 26px;
   max-height: min(64vh, 600px);
@@ -1829,6 +1923,10 @@
     top: calc(100% + 6px);
   }
 
+  .readme-drawer-shell {
+    scroll-margin-top: 124px;
+  }
+
   .readme-drawer-header {
     flex-direction: column;
     align-items: stretch;
@@ -1855,6 +1953,12 @@
   .readme-drawer-body {
     padding: 16px;
     max-height: 58vh;
+  }
+
+  .readme-translate-banner {
+    padding: 8px 10px;
+    gap: 8px;
+    font-size: 12px;
   }
 
   .readme-btn-label {
